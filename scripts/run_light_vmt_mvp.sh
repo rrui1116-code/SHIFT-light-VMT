@@ -34,10 +34,17 @@ gate_path="$OUT/gate_outputs/${PREFIX}_threshold_${threshold_suffix}.json"
   --prefix "${PREFIX}_threshold_${threshold_suffix}"
 
 if [[ -n "${TEXT_RESULTS:-}" && -n "${VISUAL_RESULTS:-}" ]]; then
+  merged_path="$OUT/merged_results/${PREFIX}_threshold_${threshold_suffix}_results.json"
   "$PY" -m light_vmt.merge_results \
     --dataset "$DATASET" \
     --gate "$gate_path" \
     --text_results "$TEXT_RESULTS" \
     --visual_results "$VISUAL_RESULTS" \
-    --output "$OUT/merged_results/${PREFIX}_threshold_${threshold_suffix}_results.json"
+    --output "$merged_path"
+
+  "$PY" -m light_vmt.evaluate_results \
+    --results "$merged_path" \
+    --metrics ${METRICS:-BLEU chrF} \
+    --output_dir "$OUT/reports" \
+    --prefix "${PREFIX}_threshold_${threshold_suffix}"
 fi
