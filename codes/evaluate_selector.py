@@ -1,9 +1,15 @@
+import os
+import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from transformers import AutoProcessor
 from LLM_vmt_dataset.vmtDataset import Dataset4SelectorTrain  # 假设这是测试数据集的类
 from qwen_vl_utils import process_vision_info
 import torch
 import argparse
-import os
 import logging
 import json
 from tqdm import tqdm
@@ -16,7 +22,57 @@ logger = logging.getLogger('evaluateSelector')
 formatter = logging.Formatter('%(asctime)s : %(name)s - %(levelname)s - %(message)s')
 logger.setLevel(logging.INFO)
 
+def make_selector_collate_fn(frames_root):
+    def selector_collate_fn(batchRawData):
+        batchInputs, batchVideoClipID = [], []
+        for item in batchRawData:
+            videoClipID = item['videoClipID']
+            for i in range(5):
+                batchInputs.append([
+                    {"role": "system", "content": ""},
+                    {"role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "image": f"{frames_root}/{videoClipID}/{videoClipID}_{int(item['clusteredInfo'][i])}.jpg",
+                            "max_pixels": 360 * 420,
+                        },
+                    {"type": "text", "text": item['sentence']},],
+                    }
+                ])
+            
+            # 添加纯文本
+            batchInputs.append([
+                {"role": "system", "content": ""},
+                {"role": "user",
+                "content": [{"type": "text", "text": item['sentence']}],
+                }
+            ])
+            batchVideoClipID.append(videoClipID)
+        return batchInputs, batchVideoClipID
+
+    return selector_collate_fn
+
+
 def selector_collate_fn(batchRawData):
+    return make_selector_collate_fn("/root/autodl-tmp/frames/50frames")(batchRawData)
+
+
+def resolve_processor_path(args):
+    if args.processor_path is not None:
+        return args.processor_path
+    if os.path.exists(os.path.join(args.model_path, "preprocessor_config.json")):
+        return args.model_path
+    legacy_path = "./checkpoint/selectorInit"
+    if os.path.exists(os.path.join(legacy_path, "preprocessor_config.json")):
+        return legacy_path
+    raise FileNotFoundError(
+        "Cannot find processor config. Pass --processor_path, for example "
+        "/autodl-fs/data/SHIFT-main-results/train_output_small/best_model."
+    )
+
+
+def legacy_selector_collate_fn(batchRawData):
     batchInputs, batchVideoClipID = [], []
     for item in batchRawData:
         videoClipID = item['videoClipID']
@@ -71,15 +127,15 @@ def evaluate(args):
         dtype=torch.bfloat16
     )
     
-    processor = AutoProcessor.from_pretrained(
-        './checkpoint/selectorInit',
-        trust_remote_code=True
-    )
+    processor_path = resolve_processor_path(args)
+    logger.info(f"processor_path: {processor_path}")
+    processor = AutoProcessor.from_pretrained(processor_path, trust_remote_code=True)
     
     model.to(device)
+    model.eval()
     
     dataset = Dataset4SelectorTrain(args.test_data_path)
-    dataLoader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=selector_collate_fn)
+    dataLoader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=make_selector_collate_fn(args.frames_root))
     
     maxIndex, videoClipID = [], []
     selectorScoreRecords = []
@@ -91,7 +147,7 @@ def evaluate(args):
         batchInputs, batchVideoClipID = batch_data
         imageInputs, videoInputs = process_vision_info(batchInputs)
         texts = [processor.apply_chat_template(itemInputs, tokenize=False, add_generation_prompt=False) for itemInputs in batchInputs]
-    
+
         batchInputs = processor(
             text=texts,
             images=imageInputs,
@@ -100,8 +156,9 @@ def evaluate(args):
             return_tensors="pt",
         )
         batchInputs = batchInputs.to(device)
-        outputs = model(**batchInputs)
-        scores = outputs.logits
+        with torch.inference_mode():
+            outputs = model(**batchInputs)
+            scores = outputs.logits
         raw_scores = scores.detach().float().cpu().numpy()
         for clip_id, row in zip(batchVideoClipID, raw_scores.tolist()):
             visual_scores = row[:5]
@@ -175,10 +232,12 @@ if __name__ == "__main__":
     parser.add_argument("--scores_file_path", type=str, default=None, help="scores文件路径")
     # 模型相关参数
     parser.add_argument("--model_path", type=str, required=True, help="模型路径")
+    parser.add_argument("--processor_path", type=str, default=None, help="processor路径；默认优先使用model_path")
     parser.add_argument("--output_dir", type=str, default=None, help="评估结果保存路径")
     
     # 评估相关参数
     parser.add_argument("--batch_size", type=int, default=1, help="批次大小")
+    parser.add_argument("--frames_root", type=str, default="/root/autodl-tmp/frames/50frames", help="50帧目录")
     
     args = parser.parse_args()
 

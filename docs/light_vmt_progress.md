@@ -46,10 +46,53 @@ Latest small validation result:
 - `estimated_visual_saving_rate`: 0.808
 - Routing coverage: matched 50, missing 0
 
+## GPU Selector Validation
+
+GPU instance status:
+
+- Device: NVIDIA GeForce RTX 3090, 24GB
+- Selector smoke-test script: `scripts/run_light_vmt_selector_gate.sh`
+- Default model: `/autodl-fs/data/SHIFT-main-results/train_output_small/best_model`
+- Default dataset: `/root/autodl-tmp/train_data/val_selector_small.json`
+
+This script runs real selector logits on GPU, then applies the same gate/report/route workflow.
+
+Verified GPU selector smoke tests:
+
+- Small selector model, threshold `0.02`: 50 samples, `visual_call_rate=0.0`, matched 50, missing 0.
+- Full selector model, threshold `0.02`: 50 samples, `visual_call_rate=0.0`, matched 50, missing 0.
+- Full selector model micro-threshold sweep:
+  - `-0.0002`: `visual_call_rate=0.90`
+  - `-0.0001`: `visual_call_rate=0.74`
+  - `-0.00005`: `visual_call_rate=0.36`
+  - `0.0`: `visual_call_rate=0.14`
+  - `0.00002`: `visual_call_rate=0.06`
+  - `0.00005`: `visual_call_rate=0.0`
+
+Important note: thresholds from offline `cometScores` and thresholds from real selector logits are not on the same scale. Use `oracle_comet_thresholds` for oracle/offline data and `selector_logit_thresholds` for real selector outputs.
+
+## GPU Inference Smoke Loop
+
+Completed smoke loop on 2026-06-04:
+
+- Threshold: `0.0` from real selector logits.
+- Routed source: `val_selector_small_full_selector_t0`.
+- Text-only inference smoke: 2 samples.
+- Image-text inference smoke: 2 samples with `image_selection=select`.
+- Merge smoke: 4 samples, `missing_count=0`, `text_only_count=2`, `visual_count=2`.
+- Lightweight metrics smoke: BLEU `7.1903`, chrF `9.5680`.
+
+Smoke outputs:
+
+- Text results: `/root/SHIFT-main/eval/eval-2026-06-03-23-02-29/results.json`
+- Visual results: `/root/SHIFT-main/eval/eval-2026-06-03-23-45-57/results.json`
+- Merged results: `/root/autodl-tmp/light_vmt_outputs/smoke/merged_results.json`
+- Metrics: `/root/autodl-tmp/light_vmt_outputs/smoke/smoke_2_text_2_visual_translation_metrics.json`
+
 ## Next Work
 
-1. Run selector on a GPU instance to produce reference-free `selector_scores.json`.
-2. Run text-only and image-text inference branches on routed datasets.
-3. Merge branch outputs and compute translation quality metrics.
-4. Sweep thresholds on validation data and choose a threshold with a quality/cost tradeoff.
+1. Run the full 50-sample validation smoke for threshold `0.0`: 43 text-only samples and 7 image-text samples.
+2. Merge the 50-sample branch outputs and compute BLEU/chrF.
+3. Compare selector thresholds `0.0`, `-0.00005`, and `-0.0001` on the same 50-sample GPU subset.
+4. Expand to larger validation data after the 50-sample GPU loop is stable.
 5. Consider reranker and multi-frame budget only after the MVP comparison is stable.

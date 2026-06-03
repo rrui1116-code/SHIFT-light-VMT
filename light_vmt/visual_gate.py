@@ -109,6 +109,7 @@ def main():
     parser.add_argument("--input", required=True, help="JSON file with selector_scores or cometScores")
     parser.add_argument("--output_dir", default=None)
     parser.add_argument("--thresholds", nargs="*", type=float, default=[-0.05, 0.0, 0.02, 0.05, 0.10])
+    parser.add_argument("--thresholds_csv", default=None, help="Comma-separated thresholds; useful for negative values.")
     parser.add_argument("--text_index", type=int, default=5)
     parser.add_argument("--score_field", default="auto")
     parser.add_argument("--prefix", default="gate")
@@ -118,7 +119,12 @@ def main():
     output_dir = Path(args.output_dir) if args.output_dir else paths["output_root"] / "gate_outputs"
     records_in = load_json(args.input)
     summary_by_threshold = []
-    for threshold in args.thresholds:
+    thresholds = (
+        [float(item) for item in args.thresholds_csv.split(",")]
+        if args.thresholds_csv
+        else args.thresholds
+    )
+    for threshold in thresholds:
         records = [compute_gate_record(item, threshold, args.text_index, args.score_field) for item in records_in]
         summary = summarize(records)
         suffix = str(threshold).replace("-", "neg").replace(".", "p")
@@ -126,7 +132,7 @@ def main():
         save_json(summary, output_dir / f"{args.prefix}_threshold_{suffix}_summary.json")
         summary_by_threshold.append((threshold, summary))
     write_summary_md(summary_by_threshold, output_dir / f"{args.prefix}_summary.md")
-    print(json.dumps({"output_dir": str(output_dir), "thresholds": args.thresholds}, ensure_ascii=False, indent=2))
+    print(json.dumps({"output_dir": str(output_dir), "thresholds": thresholds}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

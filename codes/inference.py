@@ -11,10 +11,14 @@ from transformers import GenerationConfig
 from tqdm import tqdm
 import os
 import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from datetime import datetime
 import logging
 from utils.prompts import getSystemPrompt, getUserPrompt
-from utils.computeTransMetric import computeBLEU, computeMETEOR, computeChrF, computeCOMET, computeBLEURT
 import json
 from LLM_vmt_dataset.vmtDataset import vmtDatasetForLLM
 from qwen_vl_utils import process_vision_info
@@ -384,7 +388,11 @@ if __name__ == "__main__":
     testDataloader = DataLoader(allDataset, collate_fn=modelName2collate_fn, batch_size=args.batch_size,\
         num_workers=16, pin_memory=True, shuffle=False, prefetch_factor=2, persistent_workers=True)
     
-    generationConfig = GenerationConfig.from_pretrained(args.generation_config_dir)
+    if args.generation_config_dir and os.path.exists(args.generation_config_dir):
+        generationConfig = GenerationConfig.from_pretrained(args.generation_config_dir)
+    else:
+        generationConfig = None
+        logger.info(f"generation_config_dir not found, using model defaults: {args.generation_config_dir}")
     
     # 对纯文本和多模态大模型做了区分
     if args.model_type == "text":
@@ -445,6 +453,8 @@ if __name__ == "__main__":
     saveResult(src, preds, refs, clipIDs, logDirName)
 
     if args.trans_metric:
+        from utils.computeTransMetric import computeBLEU, computeMETEOR, computeChrF, computeCOMET, computeBLEURT
+
         # 计算翻译指标
         logger.info(f"\033[91m Evaluation Resutlts")
         if 'BLEU' in args.metrics:

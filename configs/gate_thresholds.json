@@ -1,4 +1,19 @@
 {
+  "oracle_comet_thresholds": [
+    -0.05,
+    0.0,
+    0.02,
+    0.05,
+    0.1
+  ],
+  "selector_logit_thresholds": [
+    -0.0002,
+    -0.0001,
+    -0.00005,
+    0.0,
+    0.00002,
+    0.00005
+  ],
   "default_thresholds": [
     -0.05,
     0.0,
@@ -14,5 +29,6 @@
     3,
     4
   ],
-  "recommended_mvp_threshold": 0.02
+  "recommended_oracle_mvp_threshold": 0.02,
+  "recommended_selector_smoke_threshold": 0.0
 }
