@@ -1,0 +1,10 @@
+transformers==4.51.3
+deepspeed==0.17
+accelerate==1.7
+torch==2.7
+datasets==3.1.0
+torchvision==0.22.0
+bleurt-pytorch==0.0.1
+evaluate==0.4.3
+sacrebleu==2.4.3
+tqdm==4.67.1

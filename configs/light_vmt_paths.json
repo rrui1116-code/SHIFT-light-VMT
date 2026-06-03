@@ -1,0 +1,9 @@
+{
+  "project_root": "/root/SHIFT-main",
+  "data_root": "/root/autodl-tmp",
+  "file_root": "/autodl-fs/data",
+  "frames_root": "/root/autodl-tmp/frames/50frames",
+  "train_data_root": "/root/autodl-tmp/train_data",
+  "output_root": "/root/autodl-tmp/light_vmt_outputs",
+  "final_result_root": "/autodl-fs/data/SHIFT-main-results/light_vmt"
+}
