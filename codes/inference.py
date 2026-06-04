@@ -123,7 +123,7 @@ def getSrcPredsRefsMultimodalModel(dataLoader, model, processor, args, generatio
             elif args.dataset_type == "image-text" or args.dataset_type == "images-text":
                 # 对于图像输入，需要加载pixel_values
                 from utils.InternVideo import load_image
-                if args.image_selection == "multiple" or args.image_selection == "chooseImage":
+                if args.image_selection in ["multiple", "chooseImage", "light-vmt-multi"]:
                     # 处理多张图片
                     all_pixel_values = []
                     for img_path in batch_data["imagePath"][0]:
@@ -182,7 +182,7 @@ def getSrcPredsRefsMultimodalModel(dataLoader, model, processor, args, generatio
                 assert len(batch_data["src_text"]) == len(batch_data["imagePath"]), "Image-text pairs in batch not equal"
                 if "Qwen2-VL" in args.model_name or "Qwen2.5-VL" in args.model_name:
                     image_path = batch_data["imagePath"][i]
-                    if args.image_selection == "multiple":
+                    if args.image_selection in ["multiple", "light-vmt-multi"]:
                         contentList = [{"type": "image", "image": path, "max_pixels": 360 * 420} for path in image_path]
                     else:
                         contentList = [{"type": "image", "image": image_path, "max_pixels": 360 * 420}]
@@ -316,7 +316,7 @@ if __name__ == "__main__":
     parser.add_argument("--video_path", type=str, default='./data/TriFine/videoClips', help='Video path')
     parser.add_argument("--model_path", type=str, default='./huggingface/Qwen/Qwen2.5-VL-7B-Instruct')
     parser.add_argument("--model_name", type=str, default=None)
-    parser.add_argument("--image_selection", type=str, default=None, help='Image selection (mid, random, multiple, select, given)')
+    parser.add_argument("--image_selection", type=str, default=None, help='Image selection (mid, random, multiple, select, given, light-vmt-multi)')
     parser.add_argument('-sl', "--source_language", type=str, default='en', help='Source language (zh or en)')
     parser.add_argument('-tl', "--target_language", type=str, default='zh', help='Target language (zh or en)')
     parser.add_argument('-pl', "--prompt_language", type=str, default='en', help='Prompt language (zh or en)')
@@ -334,20 +334,26 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--special", type=str, default=None, help="Special setting")
     parser.add_argument("--cluster_path", type=str, default=None, help="Image path")
     parser.add_argument("--picID_path", type=str, default=None, help="The clip ID to picture ID file path.")
+    parser.add_argument("--selected_frames_path", type=str, default=None, help="Light-VMT selected frame list for multi-frame inference.")
     parser.add_argument("--given_pic_ID", type=int, default= None)
     parser.add_argument("--vatex", action="store_true", help="Whether to use VATEX dataset.")
+    parser.add_argument("--output_dir", type=str, default=None, help="Optional directory for eval.log and results.json.")
     
     args = parser.parse_args()
 
     # log 设置
-    while True:
-        logDirName = f'./eval/eval-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
-        if not os.path.exists(logDirName):
-            os.makedirs(logDirName)
-            break
-        else:
-            print("Please waiting\n")
-            time.sleep(random.randint(60, 240))
+    if args.output_dir:
+        logDirName = args.output_dir
+        os.makedirs(logDirName, exist_ok=True)
+    else:
+        while True:
+            logDirName = f'./eval/eval-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
+            if not os.path.exists(logDirName):
+                os.makedirs(logDirName)
+                break
+            else:
+                print("Please waiting\n")
+                time.sleep(random.randint(60, 240))
             
     fileHandler = logging.FileHandler(f'{logDirName}/eval.log')
     fileHandler.setLevel(logging.INFO)

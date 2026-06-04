@@ -93,6 +93,15 @@ class vmtDatasetForLLM(Dataset):
                 clusterInfo = json.load(f)
             self.clip2PicID = {k: v[args.given_pic_ID] for clipCluster in clusterInfo for k, v in clipCluster.items()}
         
+        if args.image_selection == "light-vmt-multi":
+            assert args.selected_frames_path is not None, "Please provide the selected frames path!"
+            with open(args.selected_frames_path, 'r') as f:
+                selectedFrames = json.load(f)
+            self.clip2PicIDs = {
+                info["clipID"]: info.get("selected_frame_ids", [])
+                for info in selectedFrames
+            }
+        
     def __len__(self):
         return len(self.clipData)
     
@@ -252,6 +261,18 @@ class vmtDatasetForLLM(Dataset):
                     imagePath =  f'/root/autodl-tmp/frames/50frames/{originClipData["videoClipId"]}/{thisItem["videoClipID"]}_{self.clip2PicID[thisItem["videoClipID"]]}.jpg'
                 else:
                     imagePath =  f'/root/autodl-tmp/frames/50frames/{originClipData["video_id"]}/{thisItem["videoClipID"]}_{self.clip2PicID[thisItem["videoClipID"]]}.jpg'
+            elif self.imageSelection == "light-vmt-multi":
+                selected_pic_ids = self.clip2PicIDs[thisItem["videoClipID"]]
+                if self.vatex:
+                    imagePath = [
+                        f'/root/autodl-tmp/frames/50frames/{originClipData["videoClipId"]}/{thisItem["videoClipID"]}_{pic_id}.jpg'
+                        for pic_id in selected_pic_ids
+                    ]
+                else:
+                    imagePath = [
+                        f'/root/autodl-tmp/frames/50frames/{originClipData["video_id"]}/{thisItem["videoClipID"]}_{pic_id}.jpg'
+                        for pic_id in selected_pic_ids
+                    ]
             else:
                 raise ValueError("Image selection error!")
             thisItem["imagePath"] = imagePath
