@@ -143,11 +143,70 @@ def pick_case_studies(rows, limit):
         and row["sentence_chrF_delta_gate_minus_shift"] is not None
         and row["sentence_chrF_delta_gate_minus_shift"] < 0
     ][:limit]
+    changed = [
+        row for row in rows
+        if row["original_SHIFT_selection"] != row["SHIFT_Gate_selection"]
+    ]
+    changed_better = sorted(
+        [
+            row for row in changed
+            if row["sentence_chrF_delta_gate_minus_shift"] is not None
+            and row["sentence_chrF_delta_gate_minus_shift"] > 0
+        ],
+        key=lambda row: row["sentence_chrF_delta_gate_minus_shift"],
+        reverse=True,
+    )[:limit]
+    changed_worse = sorted(
+        [
+            row for row in changed
+            if row["sentence_chrF_delta_gate_minus_shift"] is not None
+            and row["sentence_chrF_delta_gate_minus_shift"] < 0
+        ],
+        key=lambda row: row["sentence_chrF_delta_gate_minus_shift"],
+    )[:limit]
+    shift_text_gate_video = [
+        row for row in rows
+        if row["original_SHIFT_selection"] == "text-only"
+        and row["SHIFT_Gate_selection"].startswith("video")
+    ][:limit]
+    shift_video_gate_text = [
+        row for row in rows
+        if row["original_SHIFT_selection"].startswith("video")
+        and row["SHIFT_Gate_selection"] == "text-only"
+    ][:limit]
+
+    def visual_gain(row):
+        raw = row.get("SHIFT_Gate_raw_selection") or {}
+        return raw.get("visual_gain")
+
+    rows_with_gain = [row for row in scored if visual_gain(row) is not None]
+    high_visual_gain_no_improvement = sorted(
+        [
+            row for row in rows_with_gain
+            if row["sentence_chrF_delta_gate_minus_shift"] <= 0
+        ],
+        key=visual_gain,
+        reverse=True,
+    )[:limit]
+    low_visual_gain_visual_helps = sorted(
+        [
+            row for row in rows_with_gain
+            if row["SHIFT_Gate_selection"].startswith("video")
+            and row["sentence_chrF_delta_gate_minus_shift"] > 0
+        ],
+        key=visual_gain,
+    )[:limit]
     return {
         "gate_improves_translation": gate_improves,
         "gate_worsens_translation": gate_worse,
         "gate_text_only_reasonable_or_manual_check": gate_text_reasonable,
         "gate_wrongly_filters_visual": wrongly_filtered,
+        "gate_changes_selection_and_improves": changed_better,
+        "gate_changes_selection_and_worsens": changed_worse,
+        "shift_text_only_gate_video": shift_text_gate_video,
+        "shift_video_gate_text_only": shift_video_gate_text,
+        "high_visual_gain_but_no_improvement": high_visual_gain_no_improvement,
+        "low_visual_gain_but_visual_helps": low_visual_gain_visual_helps,
     }
 
 

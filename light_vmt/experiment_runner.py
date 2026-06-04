@@ -130,7 +130,7 @@ def selector_choice_record(score_item, dataset_by_clip, cluster_map):
 
 
 def write_command_files(exp_dir, commands):
-    command_text = "\n".join(commands) + "\n"
+    command_text = "set -euo pipefail\n" + "\n".join(commands) + "\n"
     (exp_dir / "config" / "commands.sh").write_text(command_text, encoding="utf-8")
     (exp_dir / "logs" / "commands.log").write_text(command_text, encoding="utf-8")
 
@@ -154,6 +154,8 @@ def inference_command(args, dataset_path, dataset_type, output_dir, extra=None):
     ]
     if extra:
         cmd.extend(extra)
+    if args.vatex:
+        cmd.append("--vatex")
     return " ".join(cmd)
 
 
@@ -325,6 +327,7 @@ def main():
     parser.add_argument("--model_name", default="Qwen2.5-VL-7B-Instruct")
     parser.add_argument("--model_type", default="multimodal")
     parser.add_argument("--python_bin", default="python3")
+    parser.add_argument("--vatex", action="store_true", default=True)
     parser.add_argument("--source_language", default="en")
     parser.add_argument("--target_language", default="zh")
     parser.add_argument("--prompt_language", default="en")
